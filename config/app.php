@@ -192,6 +192,16 @@ return [
     'Debugger' => [
         'editor' => 'phpstorm',
     ],
+    'Authentication' => [
+        'loginAction' => [
+            'controller' => 'Users',
+            'action' => 'login',
+        ],
+        'logoutAction' => [
+            'controller' => 'Users',
+            'action' => 'logout',
+        ],
+    ],
 
     /*
      * Email configuration.

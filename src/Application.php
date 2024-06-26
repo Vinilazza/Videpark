@@ -10,6 +10,10 @@ use Cake\Http\BaseApplication;
 use Cake\Http\MiddlewareQueue;
 use Cake\Routing\Middleware\AssetMiddleware;
 use Cake\Routing\Middleware\RoutingMiddleware;
+use Authentication\Middleware\AuthenticationMiddleware;
+use Authentication\AuthenticationService;
+use Authentication\AuthenticationServiceInterface;
+use Psr\Http\Message\ServerRequestInterface;
 
 class Application extends BaseApplication
 {
@@ -29,6 +33,7 @@ class Application extends BaseApplication
 
         // Load more plugins here
         $this->addPlugin('Bake');
+        $this->addPlugin('Authentication');
     }
 
     /**
@@ -37,21 +42,50 @@ class Application extends BaseApplication
      * @param \Cake\Http\MiddlewareQueue $middlewareQueue The middleware queue to setup.
      * @return \Cake\Http\MiddlewareQueue The updated middleware queue.
      */
-    public function middleware(MiddlewareQueue $middlewareQueue): MiddlewareQueue
+    public function middleware($middlewareQueue): MiddlewareQueue
     {
-        // Add more middleware here, to handle file uploads, etc.
-        $middlewareQueue
-            // Catch any exceptions in the lower layers,
-            // and make sure we always return a response.
-            ->add(new ErrorHandlerMiddleware(Configure::read('Error')))
-            // Handle plugin/theme assets like CakePHP normally does.
-            ->add(new AssetMiddleware([
-                'cacheTime' => Configure::read('Asset.cacheTime')
-            ]))
-            // Add routing middleware.
-            ->add(new RoutingMiddleware($this));
+        // Load the authentication service configuration
+        $authenticationService = $this->createAuthenticationService();
+
+        // Add ErrorHandlerMiddleware
+        $middlewareQueue->add(ErrorHandlerMiddleware::class);
+
+        // Add AssetMiddleware for serving asset files.
+        $middlewareQueue->add(AssetMiddleware::class);
+
+        // Add RoutingMiddleware for handling URL routing.
+        $middlewareQueue->add(new RoutingMiddleware($this));
+
+        // Add the AuthenticationMiddleware.
+        $middlewareQueue->add(new AuthenticationMiddleware($authenticationService));
 
         return $middlewareQueue;
+    }
+
+    /**
+     * Create the authentication service
+     *
+     * @return \Authentication\AuthenticationServiceInterface
+     */
+    protected function createAuthenticationService(): AuthenticationServiceInterface
+    {
+        $service = new AuthenticationService();
+
+        // Carregar os identificadores de autenticação, por exemplo, senha de usuário
+        $service->loadIdentifier('Authentication.Password', [
+            'fields' => [
+                'username' => 'email',
+                'password' => 'password',
+            ]
+        ]);
+
+        // Carregar os autenticadores, por exemplo, formulário
+        $service->loadAuthenticator('Authentication.Session');
+        $service->loadAuthenticator('Authentication.Form', [
+            'loginUrl' => '/users/login',
+        ]);
+
+        return $service;
     }
 
     /**
